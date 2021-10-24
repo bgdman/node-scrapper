@@ -56,7 +56,7 @@ app.get("/scrapper/:tag", async (req, res) => {
     for (let date of weekDays) {
       const item = {
         date: $(date).children(".nadpis").text(),
-        item: $(date).children("ul").children("li").text(),
+        item: $(date).children("ul").children(".polevka").text(),
       };
       veroniData.push(item);
     }
@@ -110,8 +110,6 @@ app.get("/scrapper/:tag", async (req, res) => {
     default:
       res.send("Something went wrong");
   }
-
-  // res.send(menuData);
 });
 
 app.listen(port, () => {
