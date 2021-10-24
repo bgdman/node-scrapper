@@ -5,6 +5,12 @@ import cheerio from "cheerio";
 const app = express();
 const port = 3000;
 
+const urlMapping = {
+  suzies: "http://www.suzies.cz/poledni-menu.html",
+  veroni_coffee: "https://www.menicka.cz/4921-veroni-coffee--chocolate.html",
+  denni_menu: "https://www.pivnice-ucapa.cz/denni-menu.php",
+};
+
 app.use(function (req, res, next) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
@@ -19,91 +25,93 @@ app.use(function (req, res, next) {
   next();
 });
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
-});
+app.get("/scrapper/:tag", async (req, res) => {
+  const getSuzieMenuData = () => {
+    let suziData = [];
+    const weekDays = $(".uk-card-body");
 
-/* www.suzies.cz */
-app.get("/scrapper/suzies", async (req, res) => {
-  const url = "http://www.suzies.cz/poledni-menu.html";
-  const { data } = await axios.get(url);
-  const $ = cheerio.load(data);
+    for (let date of weekDays) {
+      const titles = $(date).children("h3");
+      const prices = $(date).children(".uk-grid-small").children(".price");
+      const items = $(date)
+        .children(".uk-grid-small")
+        .children(".uk-width-expand");
 
-  const weekDays = $(".uk-card-body");
-  let menuData = [];
+      for (let i = 0; i < titles.length; i++) {
+        const item = {
+          date: $(date).children("h2").text(),
+          title: $(titles[i]).text(),
+          item: $(items[i]).text(),
+          price: $(prices[i]).text(),
+        };
+        suziData.push(item);
+      }
+    }
+    return suziData;
+  };
 
-  for (let date of weekDays) {
-    const titles = $(date).children("h3");
-    const prices = $(date).children(".uk-grid-small").children(".price");
-    const items = $(date)
-      .children(".uk-grid-small")
-      .children(".uk-width-expand");
-
-    for (let i = 0; i < titles.length; i++) {
+  const getVeroniMenuData = () => {
+    let veroniData = [];
+    const weekDays = $(".menicka");
+    for (let date of weekDays) {
       const item = {
-        date: $(date).children("h2").text(),
-        title: $(titles[i]).text(),
-        item: $(items[i]).text(),
-        price: $(prices[i]).text(),
+        date: $(date).children(".nadpis").text(),
+        item: $(date).children("ul").children("li").text(),
       };
-      menuData.push(item);
+      veroniData.push(item);
     }
-  }
+    return veroniData;
+  };
 
-  res.send(menuData);
-});
+  const getDenniMenuData = () => {
+    let denniData = [];
+    const weekDays = $(".listek").children(".row");
+    for (let date of weekDays) {
+      let dailyItems = [];
 
-/* veroni-coffee */
-app.get("/scrapper/veroni-coffee", async (req, res) => {
-  const url = "https://www.menicka.cz/4921-veroni-coffee--chocolate.html";
-  const { data } = await axios.get(url);
-  const $ = cheerio.load(data);
-  let menuData = [];
+      dailyItems.push(
+        $(date)
+          .children(".col-md-9")
+          .children(".row")
+          .children(".polevka")
+          .text()
+      );
+      for (let element of $(date).children(".col-md-9").children(".row")) {
+        if ($(element).children(".col-md-9").text())
+          dailyItems.push($(element).children(".col-md-9").text());
+      }
 
-  const weekDays = $(".menicka");
-  for (let date of weekDays) {
-    const item = {
-      date: $(date).children(".nadpis").text(),
-      item: $(date).children("ul").children("li").text(),
-    };
-    menuData.push(item);
-  }
-
-  res.send(menuData);
-});
-
-/* denni-menu.php */
-app.get("/scrapper/denni-menu", async (req, res) => {
-  const url = "https://www.pivnice-ucapa.cz/denni-menu.php";
-
-  const { data } = await axios.get(url);
-  const $ = cheerio.load(data);
-  let menuData = [];
-
-  const weekDays = $(".listek").children(".row");
-  for (let date of weekDays) {
-    let dailyItems = [];
-
-    dailyItems.push(
-      $(date).children(".col-md-9").children(".row").children(".polevka").text()
-    );
-    for (let element of $(date).children(".col-md-9").children(".row")) {
-      if ($(element).children(".col-md-9").text())
-        dailyItems.push($(element).children(".col-md-9").text());
+      const item = {
+        date: $(date)
+          .children(".col-md-3")
+          .children(".float-right")
+          .children(".date")
+          .text(),
+        item: dailyItems,
+      };
+      denniData.push(item);
     }
+    return denniData;
+  };
 
-    const item = {
-      date: $(date)
-        .children(".col-md-3")
-        .children(".float-right")
-        .children(".date")
-        .text(),
-      item: dailyItems,
-    };
-    menuData.push(item);
+  const { data } = await axios.get(urlMapping[req.params.tag]);
+  const $ = cheerio.load(data);
+
+  switch (req.params.tag) {
+    case "suzies":
+      res.send(getSuzieMenuData());
+      break;
+    case "veroni_coffee":
+      res.send(getVeroniMenuData());
+      break;
+    case "denni_menu":
+      res.send(getDenniMenuData());
+      break;
+    default:
+      res.send("Something went wrong");
   }
 
-  res.send(menuData);
+  // res.send(menuData);
 });
 
 app.listen(port, () => {
