@@ -26,6 +26,9 @@ app.use(function (req, res, next) {
 });
 
 app.get("/scrapper/:tag", async (req, res) => {
+  const { data } = await axios.get(urlMapping[req.params.tag]);
+  const $ = cheerio.load(data);
+
   const getSuzieMenuData = () => {
     let suziData = [];
     const weekDays = $(".uk-card-body");
@@ -54,9 +57,16 @@ app.get("/scrapper/:tag", async (req, res) => {
     let veroniData = [];
     const weekDays = $(".menicka");
     for (let date of weekDays) {
+      const dailyItems = [];
+      for (let item of $(date)
+        .children("ul")
+        .children("li")
+        .children(".polozka")) {
+        dailyItems.push($(item).text());
+      }
       const item = {
         date: $(date).children(".nadpis").text(),
-        item: $(date).children("ul").children(".polevka").text(),
+        item: dailyItems,
       };
       veroniData.push(item);
     }
@@ -93,9 +103,6 @@ app.get("/scrapper/:tag", async (req, res) => {
     }
     return denniData;
   };
-
-  const { data } = await axios.get(urlMapping[req.params.tag]);
-  const $ = cheerio.load(data);
 
   switch (req.params.tag) {
     case "suzies":
